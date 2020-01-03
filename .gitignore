@@ -1,2 +1,3 @@
 *.pyc
 /out.svg
+/env/
