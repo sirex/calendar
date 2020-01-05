@@ -1,6 +1,11 @@
 import calendar
+import collections
 import datetime
+import pathlib
+
 import astral
+import dateutil.parser
+import dateutil.rrule
 
 
 class Box:
@@ -64,7 +69,7 @@ class Rect(Elem):
     }
     attrs = {
         'stroke': 'black',
-        'stroke-width': '1',
+        'stroke-width': '0.3',
         'fill': 'transparent',
     }
 
@@ -120,7 +125,7 @@ def itermonths(b: Box, start: datetime.date):
     # Yield month names
     for i, (date, month) in enumerate(months):
         yield TopCal(
-            calendar.month_name[date.month] + f' | {date.month:02d}',
+            calendar.month_name[date.month] + f' | {date.month}',
             x=l + 8 * i * w,
             y=t,
         )
@@ -174,6 +179,13 @@ def itermonths(b: Box, start: datetime.date):
             width=w * 7 + 2,
             height=(bot - top) * h,
         )
+
+    # Get events
+    end = start + datetime.timedelta(days=7 * 4 + 7)
+    events = get_events(
+        datetime.datetime.combine(start, datetime.datetime.min.time()),
+        datetime.datetime.combine(end, datetime.datetime.min.time()),
+    )
 
     # Yield highlighted days
     a = astral.Astral()
@@ -256,32 +268,100 @@ def itermonths(b: Box, start: datetime.date):
                 font_size=3.5,
             )
 
+            # Show events
+            for k, event in enumerate(events[date]):
+                yield Text(
+                    event,
+                    x=l + j * w + 1 + 1,
+                    y=t + i * h + 1 + 13 + k * 4,
+                    font_size=3.5,
+                )
 
-# A4 paper
-p = Box(w=297, h=210)
 
-# Main canvas
-c = p.shrink(10)
+def write_svg(date: datetime.date, output: pathlib.Path):
+    # A4 paper
+    p = Box(w=297, h=210)
 
-# Start date
-start = datetime.date(2019, 12, 30)
-# start = datetime.date(2020, 1, 27)
-# start = datetime.date(2020, 2, 24)
+    # Main canvas
+    c = p.shrink(10)
 
-months = ''.join(str(el) for el in itermonths(c, start))
+    months = ''.join(str(el) for el in itermonths(c, date))
 
-svg = f"""
-<svg version="1.1"
-     baseProfile="full"
-     width="{p.w}mm" height="{p.h}mm"
-     xmlns="http://www.w3.org/2000/svg">
+    svg = f"""
+    <svg version="1.1"
+        baseProfile="full"
+        width="{p.w}mm" height="{p.h}mm"
+        xmlns="http://www.w3.org/2000/svg">
+        <rect width="100%" height="100%" fill="white" />
+        {months}
+    </svg>
+    """
 
-  <rect width="100%" height="100%" fill="white" />
+    outfile = output / f'{date}.svg'
+    print(outfile)
+    with outfile.open('w') as f:
+        f.write(svg)
 
-  {months}
 
-</svg>
-"""
+def get_events(start: datetime.datetime, end: datetime.datetime):
+    events = collections.defaultdict(list)
 
-with open('out.svg', 'w') as f:
-    f.write(svg)
+    with open('events.txt') as f:
+        for line in f:
+            line = line.strip()
+            if line == '' or line.startswith('#'):
+                continue
+            title, etype, line = map(str.strip, line.split(';', 2))
+            assert etype in ('bday', 'powersof10', 'event'), f"Unknown event type {etype!r}."
+
+            if etype == 'bday':
+                dtstart, rrule = map(str.strip, line.split(';', 1))
+                dtstart = datetime.datetime.strptime(dtstart, '%Y-%m-%d')
+                rule = dateutil.rrule.rrulestr(rrule, dtstart=dtstart)
+                for d in rule.between(start, end, inc=True):
+                    age = d.year - dtstart.year
+                    events[d.date()].append(title.format(age=age))
+            elif etype == 'powersof10':
+                dtstart = line.strip()
+                dtstart = datetime.datetime.strptime(dtstart, '%Y-%m-%d')
+                units = (
+                    ('MONTHLY', 'mėn.', range(2, 4)),
+                    ('WEEKLY', 'sav.', range(2, 4)),
+                    ('DAILY', 'd.', range(2, 5)),
+                    ('HOURLY', 'val.', range(4, 6)),
+                    ('MINUTELY', 'min.', range(6, 8)),
+                    ('SECONDLY', 'sek.', range(8, 10)),
+                )
+                for freq, unit, powers in units:
+                    for power in powers:
+                        interval = 10**power
+                        rrule = f'RRULE:FREQ={freq};INTERVAL={interval};COUNT=2'
+                        rule = dateutil.rrule.rrulestr(rrule, dtstart=dtstart)
+                        for d in rule.between(
+                            max(dtstart + datetime.timedelta(days=1), start),
+                            end,
+                            inc=True,
+                        ):
+                            if power > 3:
+                                age = f'10^{power} {unit}'
+                            else:
+                                age = f'{interval} {unit}'
+                            events[d.date()].append(title.format(age=age))
+            else:
+                rrule = line.strip()
+                rule = dateutil.rrule.rrulestr(rrule, dtstart=start)
+                for d in rule.between(start, end, inc=True):
+                    events[d.date()].append(title)
+
+    return events
+
+
+if __name__ == "__main__":
+    output = pathlib.Path('output')
+    output.mkdir(exist_ok=True)
+    for p in output.glob('*.svg'):
+        p.unlink()
+    date = datetime.date(2019, 12, 30)
+    for i in range(14):
+        write_svg(date, output)
+        date += datetime.timedelta(days=7 * 4)
