@@ -2,6 +2,7 @@ import calendar
 import collections
 import datetime
 import pathlib
+import sys
 
 import astral
 import dateutil.parser
@@ -70,7 +71,7 @@ class Rect(Elem):
     attrs = {
         'stroke': 'black',
         'stroke-width': '0.3',
-        'fill': 'transparent',
+        'fill': 'white',
     }
 
 
@@ -82,11 +83,18 @@ class Text(Elem):
         'font-size': 'mm',
         'fill': 'black',
     }
+    attrs = {
+        'font-size': 3,
+        # 'font-family': 'Noto Sans Display',
+        'font-family': 'Open Sans Condensed'
+    }
 
 
 class TopCal(Text):
     attrs = {
         'font-size': 3,
+        # 'font-family': 'Noto Sans Display',
+        'font-family': 'Open Sans Condensed'
     }
 
 
@@ -141,19 +149,6 @@ def itermonths(b: Box, start: datetime.date):
             )
     t += h
 
-    # Yield month days
-    for i, (date, month) in enumerate(months):
-        for j, week in enumerate(month):
-            for k, d in enumerate(week):
-                if d.month != date.month:
-                    continue
-                yield TopCal(
-                    d.day,
-                    x=l + w + 8 * i * w + k * w,
-                    y=t + j * h,
-                    text_anchor='end',
-                )
-
     # Highligh current weeks
     end = start + datetime.timedelta(days=7 * 4)
     for i, (date, month) in enumerate(months):
@@ -180,6 +175,19 @@ def itermonths(b: Box, start: datetime.date):
             height=(bot - top) * h,
         )
 
+    # Yield month days
+    for i, (date, month) in enumerate(months):
+        for j, week in enumerate(month):
+            for k, d in enumerate(week):
+                if d.month != date.month:
+                    continue
+                yield TopCal(
+                    d.day,
+                    x=l + w + 8 * i * w + k * w,
+                    y=t + j * h,
+                    text_anchor='end',
+                )
+
     # Get events
     end = start + datetime.timedelta(days=7 * 4 + 7)
     events = get_events(
@@ -205,7 +213,7 @@ def itermonths(b: Box, start: datetime.date):
             )
             yield Text(
                 date.day,
-                x=l + j * w + 1 + 11,
+                x=l + j * w + 1 + 9,
                 y=t + i * h + 1 + 8,
                 font_size=10,
                 text_anchor='end',
@@ -217,7 +225,7 @@ def itermonths(b: Box, start: datetime.date):
             sunrise = sun['sunrise']
             yield Text(
                 f'↑{sunrise.hour:02d}:{sunrise.minute:02d}',
-                x=l + j * w + 1 + 1 + 12,
+                x=l + j * w + 1 + 1 + 9,
                 y=t + i * h + 1 + 3.5,
                 font_size=3.5,
             )
@@ -226,7 +234,7 @@ def itermonths(b: Box, start: datetime.date):
             sunset = sun['sunset']
             yield Text(
                 f'↓{sunset.hour:02d}:{sunset.minute:02d}',
-                x=l + j * w + 1 + 1 + 12,
+                x=l + j * w + 1 + 1 + 9,
                 y=t + i * h + 1 + 8,
                 font_size=3.5,
             )
@@ -237,7 +245,7 @@ def itermonths(b: Box, start: datetime.date):
             minutes = remainder // 60
             yield Text(
                 f'☀{hours:02d}:{minutes:02d}',
-                x=l + j * w + 1 + 1 + 24,
+                x=l + j * w + 1 + 1 + 21,
                 y=t + i * h + 1 + 3.5,
                 font_size=3.5,
             )
@@ -263,8 +271,35 @@ def itermonths(b: Box, start: datetime.date):
             moon = phases[moon]
             yield Text(
                 f'{moon}{hours:02d}:{minutes:02d}',
-                x=l + j * w + 1 + 1 + 24,
+                x=l + j * w + 1 + 1 + 21,
                 y=t + i * h + 1 + 8,
+                font_size=3.5,
+            )
+
+            # Zodiac signs
+            zodiac = {
+                3: ('♈', 'Avinas', 'Aries', 21),
+                4: ('♉', 'Jautis', 'Taurus', 21),
+                5: ('♊', 'Dvyniai', 'Gemini', 22),
+                6: ('♋', 'Vėžys', 'Cancer', 22),
+                7: ('♌', 'Liūtas', 'Leo', 23),
+                8: ('♍', 'Mergelė', 'Virgo', 23),
+                9: ('♎', 'Svarstyklės', 'Libra', 24),
+                10: ('♏', 'Skorpionas', 'Scorpius', 24),
+                11: ('♐', 'Šaulys', 'Sagittarius', 22),
+                12: ('♑', 'Ožiaragis', 'Capricorn', 23),
+                1: ('♒', 'Vandenis', 'Aquarius', 21),
+                2: ('♓', 'Žuvys', 'Pisces', 20),
+            }
+            zodiac[0] = [12]
+            if zodiac[date.month][-1] > date.day:
+                sign = zodiac[date.month - 1][0]
+            else:
+                sign = zodiac[date.month][0]
+            yield Text(
+                sign,
+                x=l + j * w + 1 + 1 + 33,
+                y=t + i * h + 1 + 3.5,
                 font_size=3.5,
             )
 
@@ -305,8 +340,8 @@ def write_svg(date: datetime.date, output: pathlib.Path):
 
 def get_events(start: datetime.datetime, end: datetime.datetime):
     events = collections.defaultdict(list)
-
-    with open('events.txt') as f:
+    eventsfile = pathlib.Path(sys.argv[1])
+    with eventsfile.open() as f:
         for line in f:
             line = line.strip()
             if line == '' or line.startswith('#'):
