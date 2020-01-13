@@ -75,6 +75,20 @@ class Rect(Elem):
     }
 
 
+class Line(Elem):
+    name = 'line'
+    units = {
+        'x1': 'mm',
+        'y1': 'mm',
+        'x2': 'mm',
+        'y2': 'mm',
+    }
+    attrs = {
+        'stroke': 'black',
+        'stroke-width': '0.3',
+    }
+
+
 class Text(Elem):
     name = 'text'
     units = {
@@ -131,9 +145,28 @@ def itermonths(b: Box, start: datetime.date):
     t += h
 
     # Yield month names
+    names = [
+        'Sausis',
+        'Vasaris',
+        'Kovas',
+        'Balandis',
+        'Gegužė',
+        'Birželis',
+        'Liepa',
+        'Rugpjūtis',
+        'Rugsėjis',
+        'Spalis',
+        'Lapkritis',
+        'Gruodis',
+    ]
     for i, (date, month) in enumerate(months):
+        name = [
+            names[date.month - 1],
+            calendar.month_name[date.month],
+            str(date.month),
+        ]
         yield TopCal(
-            calendar.month_name[date.month] + f' | {date.month}',
+            ' | '.join(name),
             x=l + 8 * i * w,
             y=t,
         )
@@ -188,6 +221,32 @@ def itermonths(b: Box, start: datetime.date):
                     text_anchor='end',
                 )
 
+    # Weekday names
+    l -= .5  # noqa
+    t += h * 6 + h
+    w = b.w / 7
+    h = (b.y + b.h - t) / 4
+    names = [
+        'Pirmadienis',
+        'Antradienis',
+        'Trečiadienis',
+        'Ketvirtadienis',
+        'Penktadienis',
+        'Šeštadienis',
+        'Sekmadienis',
+    ]
+    for i in range(7):
+        name = [
+            names[i],
+            calendar.day_name[i],
+        ]
+        yield Text(
+            ' | '.join(name),
+            x=l + i * w + 1,
+            y=t - 1,
+            font_size=4,
+        )
+
     # Get events
     end = start + datetime.timedelta(days=7 * 4 + 7)
     events = get_events(
@@ -198,10 +257,6 @@ def itermonths(b: Box, start: datetime.date):
     # Yield highlighted days
     a = astral.Astral()
     city = a['Vilnius']
-    l -= .5  # noqa
-    t += h * 6 + h
-    w = b.w / 7
-    h = (b.y + b.h - t) / 4
     for i in range(4):
         for j in range(7):
             date = start + datetime.timedelta(days=i * 7 + j)
@@ -318,7 +373,23 @@ def write_svg(date: datetime.date, output: pathlib.Path):
     p = Box(w=297, h=210)
 
     # Main canvas
-    c = p.shrink(10)
+    c = Box(
+        p,
+        x=10,
+        y=20,
+        w=p.w - 10 * 2,
+        h=p.h - 30,
+    )
+
+    # Line markers at the top of page
+    markers = ''.join(
+        str(Line(x1=x, y1=0, x2=x, y2=20))
+        for x in [
+            p.w / 2,
+            p.w / 2 - 40,
+            p.w / 2 + 40,
+        ]
+    )
 
     months = ''.join(str(el) for el in itermonths(c, date))
 
@@ -328,6 +399,7 @@ def write_svg(date: datetime.date, output: pathlib.Path):
         width="{p.w}mm" height="{p.h}mm"
         xmlns="http://www.w3.org/2000/svg">
         <rect width="100%" height="100%" fill="white" />
+        {markers}
         {months}
     </svg>
     """
@@ -397,6 +469,6 @@ if __name__ == "__main__":
     for p in output.glob('*.svg'):
         p.unlink()
     date = datetime.date(2019, 12, 30)
-    for i in range(14):
+    for i in range(2):
         write_svg(date, output)
         date += datetime.timedelta(days=7 * 4)
