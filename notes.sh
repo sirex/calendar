@@ -42,3 +42,8 @@ rule = dateutil.rrule.rrulestr(
 for x in rule:
     print(x)
 EOF
+
+
+# 2020-02-03 17:59
+
+env/bin/python gencal.py ~/Notes/calendar.txt 2019-12-30 -n 5

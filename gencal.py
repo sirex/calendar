@@ -1,8 +1,8 @@
+import argparse
 import calendar
 import collections
 import datetime
 import pathlib
-import sys
 
 import astral
 import dateutil.parser
@@ -112,7 +112,7 @@ class TopCal(Text):
     }
 
 
-def itermonths(b: Box, start: datetime.date):
+def itermonths(eventsfile: pathlib.Path, b: Box, start: datetime.date):
     cal = calendar.Calendar()
     date = start - datetime.timedelta(days=start.weekday())
     date = datetime.date(date.year, date.month, 1)
@@ -250,6 +250,7 @@ def itermonths(b: Box, start: datetime.date):
     # Get events
     end = start + datetime.timedelta(days=7 * 4 + 7)
     events = get_events(
+        eventsfile,
         datetime.datetime.combine(start, datetime.datetime.min.time()),
         datetime.datetime.combine(end, datetime.datetime.min.time()),
     )
@@ -368,7 +369,7 @@ def itermonths(b: Box, start: datetime.date):
                 )
 
 
-def write_svg(date: datetime.date, output: pathlib.Path):
+def write_svg(eventsfile: pathlib.Path, date: datetime.date, output: pathlib.Path):
     # A4 paper
     p = Box(w=297, h=210)
 
@@ -391,7 +392,7 @@ def write_svg(date: datetime.date, output: pathlib.Path):
         ]
     )
 
-    months = ''.join(str(el) for el in itermonths(c, date))
+    months = ''.join(str(el) for el in itermonths(eventsfile, c, date))
 
     svg = f"""
     <svg version="1.1"
@@ -410,9 +411,8 @@ def write_svg(date: datetime.date, output: pathlib.Path):
         f.write(svg)
 
 
-def get_events(start: datetime.datetime, end: datetime.datetime):
+def get_events(eventsfile: pathlib.Path, start: datetime.datetime, end: datetime.datetime):
     events = collections.defaultdict(list)
-    eventsfile = pathlib.Path(sys.argv[1])
     with eventsfile.open() as f:
         for line in f:
             line = line.strip()
@@ -464,11 +464,19 @@ def get_events(start: datetime.datetime, end: datetime.datetime):
 
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument('events', type=pathlib.Path)
+    parser.add_argument('date', default=datetime.date.today().isoformat())
+    parser.add_argument('-n', type=int, default=1)
+    args = parser.parse_args()
+
+    date = dateutil.parser.parse(args.date).date()
+
     output = pathlib.Path('output')
     output.mkdir(exist_ok=True)
     for p in output.glob('*.svg'):
         p.unlink()
-    date = datetime.date(2019, 12, 30)
-    for i in range(2):
-        write_svg(date, output)
+
+    for i in range(args.n):
+        write_svg(args.events, date, output)
         date += datetime.timedelta(days=7 * 4)
