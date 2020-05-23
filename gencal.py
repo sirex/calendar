@@ -5,8 +5,10 @@ import datetime
 import pathlib
 
 import astral
+import ephem
 import dateutil.parser
 import dateutil.rrule
+import pytz
 
 
 class Box:
@@ -177,8 +179,9 @@ def itermonths(eventsfile: pathlib.Path, b: Box, start: datetime.date):
         for week in range(7):
             yield TopCal(
                 calendar.day_abbr[week][:2],
-                x=l + 8 * i * w + week * w,
+                x=l + w + 8 * i * w + week * w,
                 y=t,
+                text_anchor='end',
             )
     t += h
 
@@ -300,7 +303,7 @@ def itermonths(eventsfile: pathlib.Path, b: Box, start: datetime.date):
             hours, remainder = divmod(daylight.seconds, 3600)
             minutes = remainder // 60
             yield Text(
-                f'☀{hours:02d}:{minutes:02d}',
+                f'☀ {hours:02d}:{minutes:02d}',
                 x=l + j * w + 1 + 1 + 21,
                 y=t + i * h + 1 + 3.5,
                 font_size=3.5,
@@ -322,11 +325,10 @@ def itermonths(eventsfile: pathlib.Path, b: Box, start: datetime.date):
                 '🌗',
                 '🌘',
             ]
-            moon = a.moon_phase(date=date)
-            moon = round(moon / 27 * 7)
-            moon = phases[moon]
+            phase = day_to_moon_phase_code(date)
+            phase = phases[phase]
             yield Text(
-                f'{moon}{hours:02d}:{minutes:02d}',
+                f'{phase} {hours:02d}:{minutes:02d}',
                 x=l + j * w + 1 + 1 + 21,
                 y=t + i * h + 1 + 8,
                 font_size=3.5,
@@ -336,14 +338,14 @@ def itermonths(eventsfile: pathlib.Path, b: Box, start: datetime.date):
             zodiac = {
                 3: ('♈', 'Avinas', 'Aries', 21),
                 4: ('♉', 'Jautis', 'Taurus', 21),
-                5: ('♊', 'Dvyniai', 'Gemini', 22),
+                5: ('♊', 'Dvyniai', 'Gemini', 23),
                 6: ('♋', 'Vėžys', 'Cancer', 22),
                 7: ('♌', 'Liūtas', 'Leo', 23),
                 8: ('♍', 'Mergelė', 'Virgo', 23),
-                9: ('♎', 'Svarstyklės', 'Libra', 24),
-                10: ('♏', 'Skorpionas', 'Scorpius', 24),
-                11: ('♐', 'Šaulys', 'Sagittarius', 22),
-                12: ('♑', 'Ožiaragis', 'Capricorn', 23),
+                9: ('♎', 'Svarstyklės', 'Libra', 23),
+                10: ('♏', 'Skorpionas', 'Scorpius', 23),
+                11: ('♐', 'Šaulys', 'Sagittarius', 23),
+                12: ('♑', 'Ožiaragis', 'Capricorn', 22),
                 1: ('♒', 'Vandenis', 'Aquarius', 21),
                 2: ('♓', 'Žuvys', 'Pisces', 20),
             }
@@ -361,12 +363,50 @@ def itermonths(eventsfile: pathlib.Path, b: Box, start: datetime.date):
 
             # Show events
             for k, event in enumerate(events[date]):
+                if len(event) > 1 and event[1] == ' ':
+                    icon, text = event.split(None, 1)
+                else:
+                    icon = None
+                    text = event
+
+                if icon:
+                    yield Text(
+                        icon,
+                        x=l + j * w + 1 + 3,
+                        y=t + i * h + 1 + 13 + k * 4,
+                        font_size=3.5,
+                        text_anchor='middle',
+                    )
+
                 yield Text(
-                    event,
-                    x=l + j * w + 1 + 1,
+                    text,
+                    x=l + j * w + 1 + 1 + 5,
                     y=t + i * h + 1 + 13 + k * 4,
                     font_size=3.5,
                 )
+
+
+def day_to_moon_phase_code(day):
+    tz = pytz.timezone('Europe/Vilnius')
+    day = datetime.datetime(day.year, day.month, day.day)
+    utcoffset = day.astimezone(tz).utcoffset()
+    day = datetime.datetime(day.year, day.month, day.day)
+    day = day - utcoffset
+    day = ephem.Date(day)
+
+    phases = [
+        (0, ephem.next_new_moon(day)),
+        (2, ephem.next_first_quarter_moon(day)),
+        (4, ephem.next_full_moon(day)),
+        (6, ephem.next_last_quarter_moon(day)),
+    ]
+
+    phase, date = min(phases, key=lambda x: x[1])
+
+    if date - day > 1:
+        return phase - 1 if phase else 7
+    else:
+        return phase
 
 
 def write_svg(eventsfile: pathlib.Path, date: datetime.date, output: pathlib.Path):
@@ -414,12 +454,12 @@ def write_svg(eventsfile: pathlib.Path, date: datetime.date, output: pathlib.Pat
 def get_events(eventsfile: pathlib.Path, start: datetime.datetime, end: datetime.datetime):
     events = collections.defaultdict(list)
     with eventsfile.open() as f:
-        for line in f:
+        for i, line in enumerate(f, 1):
             line = line.strip()
             if line == '' or line.startswith('#'):
                 continue
             title, etype, line = map(str.strip, line.split(';', 2))
-            assert etype in ('bday', 'powersof10', 'event'), f"Unknown event type {etype!r}."
+            assert etype in ('bday', 'powersof10', 'event'), f"Unknown event type {etype!r} in line {i}."
 
             if etype == 'bday':
                 dtstart, rrule = map(str.strip, line.split(';', 1))
