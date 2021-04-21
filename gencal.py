@@ -5,6 +5,7 @@ import datetime
 import pathlib
 
 import astral
+import astral.sun
 import ephem
 import dateutil.parser
 import dateutil.rrule
@@ -259,8 +260,7 @@ def itermonths(eventsfile: pathlib.Path, b: Box, start: datetime.date):
     )
 
     # Yield highlighted days
-    a = astral.Astral()
-    city = a['Vilnius']
+    city = astral.LocationInfo("Vilnius")
     for i in range(4):
         for j in range(7):
             date = start + datetime.timedelta(days=i * 7 + j)
@@ -278,7 +278,7 @@ def itermonths(eventsfile: pathlib.Path, b: Box, start: datetime.date):
                 text_anchor='end',
             )
 
-            sun = city.sun(date=date, local=True)
+            sun = astral.sun.sun(city.observer, date=date)
 
             # Sunrise
             sunrise = sun['sunrise']
@@ -310,7 +310,7 @@ def itermonths(eventsfile: pathlib.Path, b: Box, start: datetime.date):
             )
 
             # Night
-            sun = city.sun(date=date + datetime.timedelta(days=1), local=True)
+            sun = astral.sun.sun(city.observer, date=date + datetime.timedelta(days=1))
             sunrise = sun['sunrise']
             night = sunrise - sunset
             hours, remainder = divmod(night.seconds, 3600)
