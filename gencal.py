@@ -104,6 +104,7 @@ class Text(Elem):
         'font-size': 3,
         # 'font-family': 'Noto Sans Display',
         'font-family': 'Open Sans Condensed'
+        # 'font-family': 'Ubuntu Condensed'
     }
 
 
@@ -112,6 +113,7 @@ class TopCal(Text):
         'font-size': 3,
         # 'font-family': 'Noto Sans Display',
         'font-family': 'Open Sans Condensed'
+        # 'font-family': 'Ubuntu Condensed'
     }
 
 
@@ -329,7 +331,7 @@ def itermonths(eventsfile: pathlib.Path, b: Box, start: datetime.date):
             phase = phases[phase]
             yield Text(
                 f'{phase} {hours:02d}:{minutes:02d}',
-                x=l + j * w + 1 + 1 + 21,
+                x=l + j * w + 1 + 1 + 20,
                 y=t + i * h + 1 + 8,
                 font_size=3.5,
             )
@@ -338,12 +340,12 @@ def itermonths(eventsfile: pathlib.Path, b: Box, start: datetime.date):
             zodiac = {
                 3: ('♈', 'Avinas', 'Aries', 21),
                 4: ('♉', 'Jautis', 'Taurus', 21),
-                5: ('♊', 'Dvyniai', 'Gemini', 23),
-                6: ('♋', 'Vėžys', 'Cancer', 22),
-                7: ('♌', 'Liūtas', 'Leo', 23),
-                8: ('♍', 'Mergelė', 'Virgo', 23),
+                5: ('👥', 'Dvyniai', 'Gemini', 23),
+                6: ('🦞', 'Vėžys', 'Cancer', 22),
+                7: ('🦁', 'Liūtas', 'Leo', 23),
+                8: ('👩', 'Mergelė', 'Virgo', 23),
                 9: ('♎', 'Svarstyklės', 'Libra', 23),
-                10: ('♏', 'Skorpionas', 'Scorpius', 23),
+                10: ('🦂', 'Skorpionas', 'Scorpius', 23),
                 11: ('♐', 'Šaulys', 'Sagittarius', 23),
                 12: ('♑', 'Ožiaragis', 'Capricorn', 22),
                 1: ('♒', 'Vandenis', 'Aquarius', 21),

@@ -1,0 +1,20 @@
+[tool.poetry]
+name = "wcal"
+version = "0.1.0"
+description = "Personalized printable wall calendar generator."
+authors = ["Mantas <sirexas@gmail.com>"]
+license = "AGPL"
+
+[tool.poetry.dependencies]
+python = "^3.10"
+astral = "^2.2"
+pyephem = "^9.99"
+python-dateutil = "^2.8.2"
+icalevents = "^0.1.25"
+pytz = "^2022.1"
+
+[tool.poetry.dev-dependencies]
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"

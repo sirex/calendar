@@ -1,5 +1,7 @@
 # Install dependencies
-env/bin/pip install -r requirements.in
+sudo pacman -S ttf-ubuntu-font-family
+poetry install
+
 
 
 # Test calendar weekday names
@@ -46,12 +48,12 @@ EOF
 
 # 2020-02-03 17:59
 
-env/bin/python gencal.py ~/Notes/calendar.txt 2019-12-30 -n 5
+env/bin/python gencal.py ~/notes/calendar.txt 2019-12-30 -n 5
 
 
 # 2020-05-23 05:09
 
-env/bin/python gencal.py ~/Notes/calendar.txt 2020-05-18 -n 5
+env/bin/python gencal.py ~/notes/calendar.txt 2020-05-18 -n 5
 
 
 # 2020-05-23 06:01 Trying to fix moon phases
@@ -180,3 +182,32 @@ EOF
 
 # pdfunite can be used to merge all pages into one pdf file
 pdfunite print/*.pdf calendar.pdf
+
+
+# 2022-06-29 10:58 Migrate to Poetry
+
+poetry init -n --name "wcal" --description "Personalized printable wall calendar generator." --license "AGPL"
+# wcal stands for Wall Calendar
+poetry add astral pyephem python-dateutil icalevents pytz
+
+# 2022-06-29 11:04 Generate new calendar sheets
+
+poetry run python gencal.py ~/notes/calendar.txt 2022-07-11 -n 12
+poetry run python gencal.py ~/notes/calendar.txt 2022-07-11 -n 1
+
+# Inkscape does not support unicode emoji symbols
+inkscape --help
+inkscape --export-type=PNG --export-overwrite --export-dpi=300 output/2022-07-11.svg
+
+# By default ImageMagic also does not support unicode emoji symbols
+convert -units pixelsperinch -density 300 "output/*.svg" print/calendar.pdf
+
+# Final working version:
+rm output/*.{svg,png}
+poetry run python gencal.py ~/notes/calendar.txt 2022-07-11 -n 13
+for f in output/*.svg; do
+    rsvg-convert --dpi-x=600 --dpi-y=600 -o ${f%.*}.png $f
+done
+convert -units pixelsperinch -density 600 -quality 100 "output/*.png" print/calendar.pdf
+
+
